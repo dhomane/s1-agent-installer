@@ -1,0 +1,119 @@
+- name: Enforce sentinel installation
+  hosts: "{{ reachable_hosts | default('all') }}"
+  become: yes
+  gather_facts: no
+  vars:
+    installation_file: "SentinelAgent_linux_latest_version.rpm"
+    sentinel_token_aws: "{{ lookup('aws_ssm', '/ansible_automation_platform/sentinel_token_aws', region='us-east-1' ) }}"
+    sentinel_token_azure: "{{ lookup('aws_ssm', '/ansible_automation_platform/sentinel_token_azure', region='us-east-1' ) }}"
+  
+  tasks:
+    - name: Check agent version of sentinel
+      shell: "/opt/sentinelone/bin/sentinelctl version | grep 'Agent version' | awk -F ':' '{print $2}' | tr -d ' '"
+      register: agent_version
+      changed_when: false
+
+    - name: Check uuid number of sentinel
+      shell: "/opt/sentinelone/bin/sentinelctl management uuid get | awk -F ':' '{print $2}' | tr -d ' '"
+      register: uuid
+      changed_when: false
+
+    - name: Set facts about sentinel after installation
+      set_fact: 
+        mstr_sentinel_agent_version: "{{ agent_version.stdout }}"
+        mstr_sentinel_uuid: "{{ uuid.stdout }}"
+        cacheable: yes
+      when: 
+        - agent_version.stdout | length > 0
+        - uuid.stdout | length > 0
+
+    - meta: end_host
+      when: 
+        - agent_version.stdout | length > 0
+        - uuid.stdout | length > 0
+
+    - name: Start process of sentinel if it's installed but not active
+      shell: "/opt/sentinelone/bin/sentinelctl control start"
+      when: 
+        - uuid.stdout | length == 0
+        - agent_version.stdout | length == 0
+      register: start_process_sentinel
+      ignore_errors: true
+
+    - name: Check agent version of sentinel
+      shell: "/opt/sentinelone/bin/sentinelctl version | grep 'Agent version' | awk -F ':' '{print $2}' | tr -d ' '"
+      register: agent_version
+      when: start_process_sentinel is defined
+    
+    - name: Check uuid number of sentinel
+      shell: "/opt/sentinelone/bin/sentinelctl management uuid get | awk -F ':' '{print $2}' | tr -d ' '"
+      register: uuid
+      when: start_process_sentinel is defined
+  
+    - name: Set facts about sentinel
+      set_fact: 
+        mstr_sentinel_agent_version: "{{ agent_version.stdout }}"
+        mstr_sentinel_uuid: "{{ uuid.stdout }}"
+        cacheable: yes
+      when: 
+        - agent_version.stdout | length > 0
+        - uuid.stdout | length > 0
+
+    - meta: end_host
+      when: 
+        - agent_version.stdout | length > 0
+        - uuid.stdout | length > 0
+
+    - name: Uninstall sentinel when uuid is there and agent is still not ready
+      include_tasks: 
+        file: './files/uninstall_sentinel_linux.yaml'
+      when: 
+        - uuid.stdout | length > 0
+        - agent_version.stdout | length == 0
+
+    # Start installation of sentinel
+
+    - name: Copy installation file to tmp directory
+      copy:
+        src: "./files/{{ installation_file }}"
+        dest: "/tmp/{{ installation_file }}"
+
+    - name: Install sentinel
+      shell: "rpm -i --nodigest /tmp/SentinelAgent_linux_latest_version.rpm"
+    
+    - name: Register sentinel's token if aws
+      shell: "/opt/sentinelone/bin/sentinelctl management token set {{ sentinel_token_aws }}"
+      when: ansible_facts['mstr_cloud_provider'] == 'AWS'
+
+    - name: Register sentinel's token if azure
+      shell: "/opt/sentinelone/bin/sentinelctl management token set {{ sentinel_token_azure }}"
+      when: ansible_facts['mstr_cloud_provider'] == 'Azure'
+
+    - name: Start a process of sentinel
+      shell: "/opt/sentinelone/bin/sentinelctl control start"
+
+    - name: Check agent version of sentinel after installation
+      shell: "/opt/sentinelone/bin/sentinelctl version | grep 'Agent version' | awk -F ':' '{print $2}' | tr -d ' '"
+      register: agent_version
+      changed_when: false
+
+    - name: Check uuid number of sentinel after installation
+      shell: "/opt/sentinelone/bin/sentinelctl management uuid get | awk -F ':' '{print $2}' | tr -d ' '"
+      register: uuid
+      changed_when: false
+
+    - name: Set facts about sentinel after installation
+      set_fact: 
+        mstr_sentinel_agent_version: "{{ agent_version.stdout }}"
+        mstr_sentinel_uuid: "{{ uuid.stdout }}"
+        cacheable: yes
+      when: 
+        - agent_version.stdout | length > 0
+        - uuid.stdout | length > 0
+
+    - name: Set facts to point that sentinel cannot be installed properly
+      set_fact: 
+        mstr_sentinel_agent_version: "cannot_install_sentinel"
+        mstr_sentinel_uuid: "cannot_install_sentinel"
+        cacheable: yes
+      when: agent_version.stdout | length == 0 or uuid.stdout | length == 0

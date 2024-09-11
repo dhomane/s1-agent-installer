@@ -1,1 +1,1 @@
-# s1-agent-installer
+# sentinelone-agent-installer

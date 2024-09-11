@@ -1,0 +1,45 @@
+    - name: Stop sentinel service
+      shell: "systemctl stop sentinelone.service"
+      ignore_errors: yes
+         
+    - name: Disable sentinel service
+      shell: "systemctl disable sentinelone.service"
+      ignore_errors: yes
+
+    - name: Delete sentinel directories
+      shell: "rm -rf {{ item }}"
+      with_items:
+        - /usr/lib/systemd/system/sentinelone.service
+        - /lib/systemd/system/sentinelone.service
+      ignore_errors: yes
+    
+    - name: Reload services
+      shell: "systemctl {{ item }}"
+      with_items:
+        - daemon-reload
+        - reset-failed
+      ignore_errors: yes
+    
+    - name: Kill sentinel process
+      shell: "ps aux | grep 's1-\\|sentinelone-watchdog' | awk '{print $2}' | xargs kill -9 2> /dev/null"
+      ignore_errors: yes
+    
+    - name: Unmount directories
+      shell: "umount -l {{ item }}"
+      with_items:
+        - /opt/sentinelone/mount
+        - /opt/sentinelone/cgroups/memory
+        - /opt/sentinelone/rpm_mount
+      ignore_errors: yes
+    
+    - name: Delete second sentinel diretories
+      shell: "rm -rf /opt/sentinelone"
+      ignore_errors: yes
+    
+    - name: Delete sentinel user
+      shell: "userdel -f sentinelone"
+      ignore_errors: yes
+
+    - name: Uninstall the rest of sentinel components
+      shell: "rpm -ev --noscripts SentinelAgent 2> /dev/null"
+      ignore_errors: yes
