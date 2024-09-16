@@ -1,6 +1,5 @@
 # Define the path to the SentinelOne agent EXE file or the download URL
-$exePath = "https://github.com/dhomane/s1-agent-installer/releases/download/latest/s1-agent-latest.exe"  # Local path to EXE file
-
+$exePath = "https://github.com/dhomane/s1-agent-installer/releases/download/latest/s1-agent-latest.exe"  # URL to EXE file
 
 # Get the SentinelOne site token from an environment variable
 $siteToken = $env:SENTINEL_TOKEN
@@ -21,15 +20,15 @@ if ($exePath -match "^https?://") {
 
 # Execute the installation
 Write-Host "Installing SentinelOne agent..."
-$exePath -q -t $siteToken
-
+Start-Process -FilePath $exePath -ArgumentList "-q", "-t", $siteToken -Wait
 
 # Check if the installation was successful
-$installed = Get-WmiObject -Class Win32_Product | Where-Object { $_.Name -like "SentinelOne*" }
-if ($installed) {
-    Write-Host "SentinelOne agent installed successfully."
-    Get-ChildItem -Path "C:/Program Files/SentinelOne/" -Recurse -Filter "SentinelCtl.exe" | ForEach-Object { & $_.FullName agent_id }
+$installPath = "C:\Program Files\SentinelOne"
+$sentinelCtlPath = Get-ChildItem -Path $installPath -Recurse -Filter "SentinelCtl.exe" -ErrorAction SilentlyContinue
 
+if ($sentinelCtlPath) {
+    Write-Host "SentinelOne agent installed successfully."
+    & $sentinelCtlPath.FullName agent_id
 } else {
     Write-Host "SentinelOne agent installation failed."
 }
