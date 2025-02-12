@@ -27,7 +27,7 @@ fi
 
 # Variables
 rpm_url="https://github.com/dhomane/s1-agent-installer/releases/download/latest/s1-agent-latest.rpm"
-deb_url="https://github.com/dhomane/s1-agent-installer/releases/download/latest/s1-agent-latest.deb"
+deb_url="https://github.com/dhomane/s1-agent-installer/releases/download/latest/s1-agent-latest-x64.deb"
 installation_file="/tmp/s1-agent-latest.${package_manager}"
 
 # Functions
