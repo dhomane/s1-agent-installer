@@ -7,9 +7,28 @@ if [ -z "$SENTINEL_TOKEN" ]; then
   exit 1
 fi
 
+# Detect package manager
+detect_package_manager() {
+  if command -v apt &> /dev/null; then
+    echo "deb"
+  elif command -v yum &> /dev/null; then
+    echo "rpm"
+  else
+    echo "unknown"
+  fi
+}
+
+package_manager=$(detect_package_manager)
+
+if [ "$package_manager" == "unknown" ]; then
+  echo "Error: Unsupported package manager detected. Only RPM and DEB are supported."
+  exit 1
+fi
+
 # Variables
-installation_url="https://github.com/dhomane/s1-agent-installer/releases/download/latest/s1-agent-latest.rpm"
-installation_file="/tmp/s1-agent-latest.rpm"
+rpm_url="https://github.com/dhomane/s1-agent-installer/releases/download/latest/s1-agent-latest.rpm"
+deb_url="https://github.com/dhomane/s1-agent-installer/releases/download/latest/s1-agent-latest.deb"
+installation_file="/tmp/s1-agent-latest.${package_manager}"
 
 # Functions
 check_sentinel_status() {
@@ -22,10 +41,12 @@ set_sentinel_facts() {
   echo "Sentinel UUID: $uuid"
 }
 
-
 install_sentinel() {
   echo "Downloading Sentinel installation file..."
-  curl -L -o "$installation_file" "$installation_url"
+  url="${rpm_url}"
+  [ "$package_manager" == "deb" ] && url="${deb_url}"
+  
+  curl -L -o "$installation_file" "$url"
   
   if [ $? -ne 0 ]; then
     echo "Error: Failed to download the Sentinel installation file."
@@ -33,7 +54,11 @@ install_sentinel() {
   fi
 
   echo "Installing Sentinel..."
-  rpm -i --nodigest "$installation_file"
+  if [ "$package_manager" == "rpm" ]; then
+    rpm -i --nodigest "$installation_file"
+  else
+    dpkg -i "$installation_file"
+  fi
 
   # Register the token
   /opt/sentinelone/bin/sentinelctl management token set "$SENTINEL_TOKEN"
@@ -64,8 +89,6 @@ if [[ -z "$uuid" && -z "$agent_version" ]]; then
   if [[ -n "$agent_version" && -n "$uuid" ]]; then
     set_sentinel_facts
     exit 0
-  else
-    uninstall_sentinel
   fi
 fi
 
