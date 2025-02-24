@@ -9,19 +9,34 @@ fi
 # List of contexts that match the selected clusters (using current context)
 CONTEXT_NAMES=($(kubectl config get-contexts -o name))
 
+# If no contexts are found, exit with an error
+if [ ${#CONTEXT_NAMES[@]} -eq 0 ]; then
+  echo "Error: No Kubernetes contexts found. Please check your kubectl configuration."
+  exit 1
+fi
+
 # Add the SentinelOne Helm repository
 helm repo add sentinelone https://charts.sentinelone.com
 
 # Function to install SentinelOne agent for a given context
 install_agent() {
     local CONTEXT_NAME=$1
-    # Extract the cluster name from the context
+    # Extract the cluster name from the context (match `mstr-cluster-<unique-id>-<suffix>`)
     local CLUSTER_NAME=$(echo "$CONTEXT_NAME" | grep -oP 'mstr-cluster-[^-]+-[^-]+')
+
+    if [ -z "$CLUSTER_NAME" ]; then
+        echo "Warning: Unable to extract cluster name from context: $CONTEXT_NAME"
+        return
+    fi
 
     echo "Setting kubeconfig context for: $CONTEXT_NAME (extracted cluster: $CLUSTER_NAME)"
 
     # Set the kubeconfig context
-    kubectl config use-context "$CONTEXT_NAME"
+    kubectl config use-context "$CONTEXT_NAME" > /dev/null 2>&1
+    if [ $? -ne 0 ]; then
+        echo "Error: Failed to set kubeconfig context for: $CONTEXT_NAME"
+        return
+    fi
 
     echo "Installing SentinelOne agent for cluster: $CLUSTER_NAME"
 
