@@ -24,9 +24,6 @@ if [ -z "$CLUSTER_ID" ]; then
   CLUSTER_ID="$CURRENT_CONTEXT"
 fi
 
-# Use the cluster ID to construct the required format
-FINAL_CLUSTER_NAME="cluster-$CLUSTER_ID"
-
 echo "Setting kubeconfig context for: $CURRENT_CONTEXT (extracted cluster: $FINAL_CLUSTER_NAME)"
 
 # Set the kubeconfig context
