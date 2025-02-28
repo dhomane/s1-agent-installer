@@ -16,12 +16,12 @@ if [ -z "$CURRENT_CONTEXT" ]; then
 fi
 
 # Extract the unique cluster ID from the current context (match `mstr-cluster-<unique-id>`)
-CLUSTER_ID=$(echo "$CURRENT_CONTEXT" | grep -oP 'mstr-cluster-\K[^-]+')
+CLUSTER_ID=$(echo "$CURRENT_CONTEXT" | awk -F'mstr-cluster-' '{print "cluster-" $2}' | cut -d'-' -f1,2)
 
 # If unable to extract cluster ID, exit with an error
 if [ -z "$CLUSTER_ID" ]; then
-  echo "Error: Unable to extract cluster ID from the context: $CURRENT_CONTEXT"
-  exit 1
+  echo "Error: Unable to extract cluster ID from the context: $CURRENT_CONTEXT, setting it same as context"
+  CLUSTER_ID="$CURRENT_CONTEXT"
 fi
 
 # Use the cluster ID to construct the required format
