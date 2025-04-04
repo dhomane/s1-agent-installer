@@ -18,16 +18,37 @@ detect_package_manager() {
   fi
 }
 
+# Detect architecture
+detect_architecture() {
+  arch=$(uname -m)
+  if [[ "$arch" == "x86_64" ]]; then
+    echo "x64"
+  elif [[ "$arch" == "aarch64" || "$arch" == "arm64" ]]; then
+    echo "arm64"
+  else
+    echo "unsupported"
+  fi
+}
+
 package_manager=$(detect_package_manager)
+architecture=$(detect_architecture)
 
 if [ "$package_manager" == "unknown" ]; then
   echo "Error: Unsupported package manager detected. Only RPM and DEB are supported."
   exit 1
 fi
 
+if [ "$architecture" == "unsupported" ]; then
+  echo "Error: Unsupported architecture detected. Only x64 and arm64 are supported."
+  exit 1
+fi
+
 # Variables
-rpm_url="https://github.com/dhomane/s1-agent-installer/releases/download/latest/s1-agent-latest.rpm"
-deb_url="https://github.com/dhomane/s1-agent-installer/releases/download/latest/s1-agent-latest-x64.deb"
+rpm_x64_url="https://github.com/dhomane/s1-agent-installer/releases/download/latest/s1-agent-latest.rpm"
+rpm_arm64_url="https://github.com/dhomane/s1-agent-installer/releases/download/latest/s1-agent-latest-arm64.rpm"
+deb_x64_url="https://github.com/dhomane/s1-agent-installer/releases/download/latest/s1-agent-latest.deb"
+deb_arm64_url="https://github.com/dhomane/s1-agent-installer/releases/download/latest/s1-agent-latest-arm64.deb"
+
 installation_file="/tmp/s1-agent-latest.${package_manager}"
 
 # Functions
@@ -42,10 +63,23 @@ set_sentinel_facts() {
 }
 
 install_sentinel() {
-  echo "Downloading Sentinel installation file..."
-  url="${rpm_url}"
-  [ "$package_manager" == "deb" ] && url="${deb_url}"
+  echo "Downloading Sentinel installation file for $architecture architecture..."
   
+  if [ "$package_manager" == "rpm" ]; then
+    if [ "$architecture" == "x64" ]; then
+      url="${rpm_x64_url}"
+    else
+      url="${rpm_arm64_url}"
+    fi
+  else # deb
+    if [ "$architecture" == "x64" ]; then
+      url="${deb_x64_url}"
+    else
+      url="${deb_arm64_url}"
+    fi
+  fi
+  
+  echo "Using package URL: $url"
   curl -L -o "$installation_file" "$url"
   
   if [ $? -ne 0 ]; then
